@@ -26,6 +26,7 @@
 
 #include "Module.h"
 #include "System.h"
+#include "Prefetcher.h"
 
 
 namespace mem
@@ -170,6 +171,23 @@ const std::string System::help_message =
 	"      it is resolved, but releases the cache port.\n"
 	"  DirectoryLatency = <cycles> (Default = 1)\n"
 	"      Latency for a directory access in number of cycles.\n"
+	"  PrefetcherType = {PrefetcherEmpty|PrefetcherGhbPcCs|PrefetcherGhbPcDc\n"
+	"                    |PrefetcherAlways|PrefetcherMiss} \n"
+	"                    (Default = PrefetcherEmpty)\n"
+	"      Specify the type of prefetcher used for the cache module.\n"
+	"      The types for global history buffer based prefetching are:\n"
+	"           PrefetcherGhbPcCs - Program Counter indexed, Constant Stride.\n"
+	"           PrefetcherGhbPcDc - Program Counter indexed, Delta Correlation.\n"
+	"  PrefetcherGHBSize = <size> (Default = 256)\n"
+	"      The hardware prefetcher does global history buffer based prefetching.\n"
+	"      This option specifies the size of the global history buffer.\n"
+	"  PrefetcherITSize = <size> (Default = 64)\n"
+	"      The hardware prefetcher does global history buffer based prefetching.\n"
+	"      This option specifies the size of the index table used.\n"
+	"  PrefetcherLookupDepth = <num> (Default = 2)\n"
+	"      This option specifies the history (pattern) depth upto which the\n"
+	"      prefetcher looks at the history to decide when to prefetch.\n"
+
 	"\n"
 	"Section [Network <net>] defines an internal default interconnect, formed of\n"
 	"a single switch connecting all modules pointing to the network. For every\n"
@@ -500,6 +518,12 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 			"WritePolicy", "WriteBack");
 	int mshr_size = ini_file->ReadInt(geometry_section, "MSHR", 16);
 	int num_ports = ini_file->ReadInt(geometry_section, "Ports", 2);
+	
+	std::string prefetcher_type_str = ini_file->ReadString(geometry_section, "PrefetcherType", "PrefetcherEmpty");
+	int prefetcher_ghb_size         = ini_file->ReadInt(geometry_section, "PrefetcherGHBSize", 256);
+	int prefetcher_it_size          = ini_file->ReadInt(geometry_section, "PrefetcherITSize", 64);
+	int prefetcher_lookup_depth     = ini_file->ReadInt(geometry_section, "PrefetcherLookupDepth", 2);
+
 
 	// Check replacement policy
 	Cache::ReplacementPolicy replacement_policy =
@@ -577,6 +601,49 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 				module_name.c_str(),
 				err_config_note));
 
+	// Check prefetcher type
+	PrefetcherType prefetcher_type =
+			(PrefetcherType)
+			Cache::PrefetcherTypeMap.MapString(prefetcher_type_str);
+	if (!prefetcher_type)
+		throw Error(misc::fmt("%s: Cache %s: %s: "
+				"Invalid prefetcher type.\n%s",
+				ini_file->getPath().c_str(),
+				module_name.c_str(),
+				prefetcher_type_str.c_str(),
+				err_config_note));
+	if (prefetcher_type == ConstantStrideGlobalHistoryBuffer ||
+	    prefetcher_type == DeltaCorrelationGlobalHistoryBuffer ||
+	    prefetcher_type == Miss ) {
+		misc::Warning("%s: Cache %s: %s: Prefetcher type "
+				"not yet implemented, "
+				"'Always' type being used.\n",
+				ini_file->getPath().c_str(),
+				module_name.c_str(),
+				prefetcher_type_str.c_str());
+		prefetcher_type = Always;
+	}
+				
+	if (prefetcher_ghb_size < 1)
+		throw Error(misc::fmt("%s: cache %s: invalid value for "
+				"variable 'GHBSize'.\n%s",
+				ini_file->getPath().c_str(),
+				module_name.c_str(),
+				err_config_note));
+	if (prefetcher_it_size < 1)
+		throw Error(misc::fmt("%s: cache %s: invalid value for "
+				"variable 'ITSize'.\n%s",
+				ini_file->getPath().c_str(),
+				module_name.c_str(),
+				err_config_note));
+	if (prefetcher_lookup_depth < 1)
+		throw Error(misc::fmt("%s: cache %s: invalid value for "
+				"variable 'LookUpDepth'.\n%s",
+				ini_file->getPath().c_str(),
+				module_name.c_str(),
+				err_config_note));
+
+
 	// Create module
 	Module *module = addModule(module_name,
 			Module::TypeCache,
@@ -619,8 +686,11 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 			num_ways,
 			block_size,
 			replacement_policy,
-			write_policy);
-
+			write_policy,
+			prefetcher_type,
+			prefetcher_ghb_size,
+			prefetcher_it_size,
+			prefetcher_lookup_depth);
 	// Done
 	return module;
 }
@@ -715,7 +785,11 @@ Module *System::ConfigReadMainMemory(misc::IniFile *ini_file,
 			directory_num_ways,
 			block_size,
 			Cache::ReplacementLRU,
-			Cache::WriteBack);
+			Cache::WriteBack,
+			Empty,
+			1,
+			1,
+			2); //JGMonge: FIXME, need to make sure this doesn't affect (it shouldn't)
 
 	// Done
 	return module;

@@ -19,6 +19,7 @@
 
 #include "Cache.h"
 #include "System.h"
+#include "Prefetcher.h"
 
 
 namespace mem
@@ -49,20 +50,36 @@ const misc::StringMap Cache::BlockStateMap =
 	{ "I", BlockInvalid }
 };
 
-
+const misc::StringMap Cache::PrefetcherTypeMap =
+{
+	{ "PrefetcherEmpty", Empty },
+	{ "PrefetcherGhbPcCs", ConstantStrideGlobalHistoryBuffer },
+	{ "PrefetcherGhbPcDc", DeltaCorrelationGlobalHistoryBuffer },
+	{ "PrefetcherAlways", Always },
+	{ "PrefetcherMiss", Miss }
+};
+	
 Cache::Cache(const std::string &name,
 		unsigned num_sets,
 		unsigned num_ways,
 		unsigned block_size,
 		ReplacementPolicy replacement_policy,
-		WritePolicy write_policy)
+		WritePolicy write_policy,
+		PrefetcherType prefetcher_type,
+		int prefetcher_lookup_depth,
+		int prefetcher_ghb_size,
+		int prefetcher_it_size)
 		:
 		name(name),
 		num_sets(num_sets),
 		num_ways(num_ways),
 		block_size(block_size),
 		replacement_policy(replacement_policy),
-		write_policy(write_policy)
+		write_policy(write_policy),
+		prefetcher_type(prefetcher_type), 
+		prefetcher_lookup_depth(prefetcher_lookup_depth),
+		prefetcher_ghb_size(prefetcher_ghb_size),
+		prefetcher_it_size(prefetcher_it_size)
 {
 	// Derived fields
 	assert(!(num_sets & (num_sets - 1)));
@@ -87,8 +104,16 @@ Cache::Cache(const std::string &name,
 			set->lru_list.PushBack(block->lru_node);
 		}
 	}
+	
+	// Prefetcher Creation
+	prefetcher = misc::new_unique<Prefetcher> (
+			prefetcher_type,
+			prefetcher_lookup_depth,
+			prefetcher_ghb_size,
+			prefetcher_it_size);
+	
 }
-
+	
 void Cache::DecodeAddress(unsigned address,
 		unsigned &set_id,
 		unsigned &tag,

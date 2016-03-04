@@ -74,7 +74,8 @@ public:
 		AccessInvalid = 0,
 		AccessLoad,
 		AccessStore,
-		AccessNCStore
+		AccessNCStore,
+		AccessPrefetch
 	};
 
 	// Port in a memory module
@@ -314,6 +315,13 @@ public:
 	long long num_directory_accesses = 0;
 	long long num_data_accesses = 0;
 
+	// Statistics for prefetcher
+	long long num_total_prefetches = 0;
+	long long num_useless_prefetches_cache_hit = 0;
+	long long num_useless_prefetches_already_fetched = 0;
+	long long num_aborted_prefetches = 0; 
+	long long num_effective_prefetches = 0;
+
 	/// Constructor
 	Module(const std::string &name,
 			Type type,
@@ -445,7 +453,11 @@ public:
 			unsigned num_ways,
 			unsigned block_size,
 			Cache::ReplacementPolicy replacement_policy,
-			Cache::WritePolicy write_policy)
+			Cache::WritePolicy write_policy,
+			PrefetcherType prefetcher_type,
+			int prefetcher_ghb_size,
+			int prefetcher_it_size,
+			int prefetcher_lookup_depth)
 	{
 		assert(!cache.get());
 		cache = misc::new_unique<Cache>(name,
@@ -453,7 +465,12 @@ public:
 				num_ways,
 				block_size,
 				replacement_policy,
-				write_policy);
+				write_policy,
+				prefetcher_type,
+				prefetcher_ghb_size,
+				prefetcher_it_size,
+				prefetcher_lookup_depth);
+	
 	}
 
 	/// Get the cache structure associated with the module, as previously
@@ -625,7 +642,7 @@ public:
 	/// Access the module.
 	///
 	/// \param access_type
-	///	Type of access: load, store, nc-store
+	///	Type of access: load, store, nc-store, prefetch
 	///
 	/// \param address
 	///	Physical address.

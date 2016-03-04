@@ -5,6 +5,9 @@ libmemory_a_SOURCES = \
 	Cache.cc \
 	Cache.h \
 	\
+	Prefetcher.cc \
+	Prefetcher.h \
+	\
 	Directory.cc \
 	Directory.h \
 	\

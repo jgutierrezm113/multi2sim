@@ -191,6 +191,11 @@ long long Module::Access(AccessType access_type,
 
 			event = System::event_nc_store;
 			break;
+			
+		case AccessPrefetch:
+
+			event = System::event_prefetch;
+			break;
 
 		default:
 
@@ -426,6 +431,14 @@ void Module::Dump(std::ostream &os) const
 			(double) num_hits / num_accesses : 0.0);
 	os << "\n";
 
+	// Statistics - Prefetcher
+	os << misc::fmt("Total Prefetches = %lld\n", num_total_prefetches);
+	os << misc::fmt("Useless Prefetches (cache hit) = %lld\n", num_useless_prefetches_cache_hit);
+	os << misc::fmt("Useless Prefetches (already fetched) = %lld\n", num_useless_prefetches_already_fetched);
+	os << misc::fmt("Aborted Prefetches = %lld\n", num_aborted_prefetches); 
+	os << misc::fmt("Effective Prefetches = %lld\n", num_effective_prefetches);
+	os << "\n";
+    
 	// Statistics breakdown - Reads
 	os << misc::fmt("Reads = %lld\n", num_reads);
 	os << misc::fmt("CoalescedReads = %lld\n", num_coalesced_reads);
@@ -613,6 +626,37 @@ Frame *Module::canCoalesce(AccessType access_type,
 		return frame->master_frame ?
 				frame->master_frame :
 				frame;
+	}
+
+	case AccessPrefetch:
+	{
+		auto it = tail;
+		while (true)
+		{
+			// Only coalesce with groups of reads at the tail
+			Frame *frame = *it;
+			if (frame->access_type != AccessLoad)
+				return nullptr;
+
+			// Same block address, coalesce
+			if (frame->getAddress() >> log_block_size ==
+					address >> log_block_size)
+			{
+				assert(!frame->master_frame ||
+						!frame->master_frame->master_frame);
+				return frame->master_frame ?
+						frame->master_frame :
+						frame;
+			}
+			
+			// Done when head reached
+			if (it == accesses.begin())
+				break;
+
+			// Previous
+			--it;
+		}
+		break;
 	}
 
 	default:

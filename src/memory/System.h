@@ -102,6 +102,7 @@ class System
 	// are defined in SystemCoherenceProtocol.cc.
 	static void EventLoadHandler(esim::Event *, esim::Frame *);
 	static void EventStoreHandler(esim::Event *, esim::Frame *);
+	static void EventPrefetchHandler(esim::Event *, esim::Frame *);
 	static void EventNCStoreHandler(esim::Event *, esim::Frame *);
 	static void EventFindAndLockHandler(esim::Event *, esim::Frame *);
 	static void EventEvictHandler(esim::Event *, esim::Frame *);
@@ -297,6 +298,13 @@ public:
 	static esim::Event *event_load_miss;
 	static esim::Event *event_load_unlock;
 	static esim::Event *event_load_finish;
+
+	static esim::Event *event_prefetch;
+	static esim::Event *event_prefetch_lock;
+	static esim::Event *event_prefetch_action;
+	static esim::Event *event_prefetch_miss;
+	static esim::Event *event_prefetch_unlock;
+	static esim::Event *event_prefetch_finish;
 
 	static esim::Event *event_store;
 	static esim::Event *event_store_lock;

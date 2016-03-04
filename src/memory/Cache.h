@@ -24,7 +24,7 @@
 
 #include <lib/cpp/List.h>
 #include <lib/cpp/String.h>
-
+#include "Prefetcher.h"
 
 namespace mem
 {
@@ -41,10 +41,13 @@ public:
 		ReplacementFIFO,
 		ReplacementRandom
 	};
-
+   
 	/// String map for ReplacementPolicy
 	static const misc::StringMap ReplacementPolicyMap;
-
+ 
+	/// String map for PrefetcherType
+	static const misc::StringMap PrefetcherTypeMap;
+    
 	/// Possible values for write policy
 	enum WritePolicy
 	{
@@ -81,6 +84,10 @@ public:
 		// Block tag
 		unsigned tag = 0;
 
+		// Prefetcher variable identifying block if it
+		// was prefetched or not
+		unsigned prefetch = 0;
+		
 		// Transient tag assigned by NMOESI protocol
 		unsigned transient_tag = 0;
 
@@ -102,7 +109,10 @@ public:
 
 		/// Get the block tag
 		unsigned getTag() const { return tag; }
-
+		
+		/// Get the block prefetched variable
+		unsigned getPrefetch() const { return prefetch; } 
+		
 		/// Get the way index of this block
 		unsigned getWayId() const { return way_id; }
 
@@ -118,6 +128,9 @@ public:
 			this->state = state;
 			this->tag = tag;
 		}
+
+		/// Set the block prefetched variable
+		void setPrefetch(unsigned value) { this->prefetch = value; } 
 	};
 
 private:
@@ -151,13 +164,25 @@ private:
 
 	// Log base 2 of the block size
 	int log_block_size;
-
+	
 	// Block replacement policy
 	ReplacementPolicy replacement_policy;
 
 	// Write policy (write-back, write-through)
 	WritePolicy write_policy;
 
+	// Prefetcher Type
+	PrefetcherType prefetcher_type;
+	
+	// Prefetcher lookup depth for the global history buffer
+	int prefetcher_lookup_depth;
+	
+	// Prefetcher GHB size
+	int prefetcher_ghb_size;
+	
+	// Prefetcher Index Table Size
+	int prefetcher_it_size;
+	
 	// Array of sets
 	std::unique_ptr<Set[]> sets;
 
@@ -173,14 +198,21 @@ private:
 
 public:
 
+	// Prefetcher pointer
+	std::unique_ptr<Prefetcher> prefetcher;
+	
 	/// Constructor
 	Cache(const std::string &name,
 			unsigned num_sets,
 			unsigned num_ways,
 			unsigned block_size,
 			ReplacementPolicy replacement_policy,
-			WritePolicy write_policy);
-	
+			WritePolicy write_policy,
+			PrefetcherType prefetcher_type,
+			int prefetcher_lookup_depth,
+			int prefetcher_ghb_size,
+			int prefetcher_it_size);
+				
 	/// Return a pointer to a cache block
 	Block *getBlock(unsigned set_id, unsigned way_id) const
 	{
@@ -306,6 +338,9 @@ public:
 	/// Return the block size
 	unsigned getBlockSize() const { return block_size; }
 
+	/// Return the prefetcher type
+	PrefetcherType getPrefetcherType() const { return prefetcher_type; }
+	
 	/// Return the replacement policy
 	ReplacementPolicy getReplacementPolicy() const { return replacement_policy; }
 
