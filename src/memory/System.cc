@@ -88,25 +88,6 @@ System::System()
 			EventLoadHandler,
 			frequency_domain);
 
-	event_prefetch = esim_engine->RegisterEvent("prefetch",
-			EventPrefetchHandler,
-			frequency_domain);
-	event_prefetch_lock = esim_engine->RegisterEvent("prefetch_lock",
-			EventPrefetchHandler,
-			frequency_domain);
-	event_prefetch_action = esim_engine->RegisterEvent("prefetch_action",
-			EventPrefetchHandler,
-			frequency_domain);
-	event_prefetch_miss = esim_engine->RegisterEvent("prefetch_miss",
-			EventPrefetchHandler,
-			frequency_domain);
-	event_prefetch_unlock = esim_engine->RegisterEvent("prefetch_unlock",
-			EventPrefetchHandler,
-			frequency_domain);
-	event_prefetch_finish = esim_engine->RegisterEvent("prefetch_finish",
-			EventPrefetchHandler,
-			frequency_domain);
-
 	event_store = esim_engine->RegisterEvent("store",
 			EventStoreHandler,
 			frequency_domain);
