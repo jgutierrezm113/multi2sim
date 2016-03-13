@@ -32,7 +32,6 @@
 enum PrefetcherType
 {
 	Invalid = 0,
-	Empty,
 	ConstantStrideGlobalHistoryBuffer,
 	DeltaCorrelationGlobalHistoryBuffer,
 	Always,
@@ -50,10 +49,10 @@ class Prefetcher
 private:
 
 	// Identifies which prefetcher was selected by user
-	PrefetcherType type = Empty;
+	PrefetcherType type = Invalid;
 
 	// GHB lookup depth
-	int global_history_buffer_lookup_depth = 1;
+	int global_history_buffer_lookup_depth = 0;
 	
 	// Size of the array for the GHB.
 	int global_history_buffer_size = 0;
@@ -66,52 +65,25 @@ private:
 	class GlobalHistoryBufferElement
 	{
 	
-	private:
+	public:
 		// The global address miss this entry corresponds to
 		unsigned int address;
-		
+	
 		// Next element in the linked list : -1 implies none 
 		int next;
-		
+	
 		// Previous element in the linked list : -1 implies none
 		int previous;
 	
-	public:	
 		/// Whether the previous element is a GHB entry or a pointer
 		///	to the index table. 
 		enum PrefetcherPointerType
 		{
-			PrefetcherPointerGlobalHistoryBuffer = 0,
+			Invalid = 0,
+				PrefetcherPointerGlobalHistoryBuffer,
 			PrefetcherPointerIndexTable,
-		} PreviousElementType;
-		
-		/// Get Address
-		unsigned int getAddress () const { return address; }
-		
-		/// Get Next
-		int getNext () const { return next; }
-		
-		/// Get Previous
-		int getPrevious () const { return previous; }
-		
-		/// Get PreviousElementType
-		PrefetcherPointerType getPreviousElementType () const 
-		{ return PreviousElementType; }
+		} PreviousElementType; 
 
-		/// Set Address
-		void setAddress (unsigned int value) { address = value; }
-		
-		/// Set Next
-		void setNext (int value) { next = value; }
-		
-		/// Set Previous
-		void setPrevious (int value) { previous = value; }
-		
-		/// Set PreviousElementType
-		void setPreviousElementType (PrefetcherPointerType 
-				value)  
-		{ PreviousElementType = value; } 
-	
 	};
 
 	// Object containing global address of the miss, and pointer to
@@ -119,28 +91,13 @@ private:
 	class IndexTableElement
 	{
 	
-	private:
+	public:
 		// The tag to compare to before indexing into the table
 		unsigned int tag;
 		
 		// Pointer into the GHB. -1 implies no entry in GHB.
-	   	int pointer;
-	   	
-	public:
-		/// Get the way index of this block
-		//unsigned getWayId() const { return way_id; }
+		int pointer;
 
-		/// Get Tag
-		unsigned int getTag() const { return tag; }
-		
-		/// Get Pointer
-		int getPointer() const { return pointer; }
-		
-		/// Set Tag
-		void setTag (unsigned int value) { tag = value; }
-		
-		/// Set Pointer
-		void setPointer (int value) { pointer = value; }
 	};
 	
 	// Global History Buffer
@@ -164,7 +121,7 @@ public:
 	///
 	/// \param prefetch_address
 	///	Has the actual address that needs to be prefetched.
-	void prefetcher_do_prefetch(esim::Frame *esim_frame, 
+	void PrefetchAction(esim::Frame *esim_frame, 
 			unsigned int prefetch_address);
 	
 	/// Function in charge of deciding what to do with the access miss
@@ -172,81 +129,21 @@ public:
 	///
 	/// \param esim_frame
 	///	Has all the information of the data in motion.
-	void prefetcher_access_miss(esim::Frame *esim_frame);
+	void AccessOnMiss(esim::Frame *esim_frame);
 
 	/// Function in charge of deciding what to do with the access hit
 	/// depending of the prefetcher type.
 	///
 	/// \param esim_frame
 	///	Has all the information of the data in motion.
-	void prefetcher_access_hit(esim::Frame *esim_frame);
+	void AccessOnHit(esim::Frame *esim_frame);
 
 
 	/// Get Prefetcher Type
 	///
 	/// \return
 	///	Returns the type of prefetcher in use on the module.
-	PrefetcherType getPrefetcherType () const { return type; }
-
-	/// Get Global History Buffer Lookup Depth
-	///
-	/// \return
-	///	Returns the lookup depth set by the user for the Global
-	///	History Buffer.	
-	int getGlobalHistoryBufferLookupDepth () const
-	{ return global_history_buffer_lookup_depth; }
-
-	/// Get Global History Buffer Size
-	///
-	/// \return
-	///	Returns the size of the Global History Buffer.
-	int getGlobalHistoryBufferSize () const
-	{ return global_history_buffer_size; }
-
-	/// Get Global History Buffer Index Table Size
-	///
-	/// \return
-	///	Returns the size of the Index Table for the Global 
-	///	History Buffer.	
-	int getGlobalHistoryBufferIndexTableSize () const
-	{ return global_history_buffer_index_table_size; }
-
-	/// Set Prefetcher Type
-	///
-	/// \param type
-	///	Prefetcher Type for the module.
-	void setPrefetcherType(PrefetcherType value) { type = value; }
-
-	/// Set Global History Buffer Lookup Depth
-	///
-	///	\param global_history_buffer_lookup_depth
-	///		The lookup depth that will be used for the GHB 
-	///		algorithm.
-	///
-	/// 	\return
-	///		NULL.	
-	void setGlobalHistoryBufferLookupDepth ( int value ) 
-	{ global_history_buffer_lookup_depth = value; }
-
-	/// Set Global History Buffer Size
-	///
-	///	\param global_history_buffer_size
-	///		Size of the GHB.
-	///
-	/// 	\return
-	///		NULL.
-	void setGlobalHistoryBufferSize ( int value ) 
-	{ global_history_buffer_size = value; }
-
-	/// Set Global History Buffer Index Table Size
-	///
-	///	\param global_history_buffer_index_table_size
-	///		Size of the GHB Index Table.
-	///
-	/// 	\return
-	///		NULL.	
-	void setGlobalHistoryBufferIndexTableSize ( int value ) 
-	{ global_history_buffer_index_table_size = value; }
+	PrefetcherType GetType () const { return type; }
 		
 	/// Prefetcher Update Tables
 	///
@@ -257,7 +154,7 @@ public:
 	///	\return
 	///		it_index >= 0 if any valid update is made, 
 	///		negative otherwise.
-	int prefetcherUpdateTables (esim::Frame *esim_frame);
+	int UpdateTables (esim::Frame *esim_frame);
 	
 };
 

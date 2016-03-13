@@ -41,7 +41,7 @@ public:
 		ReplacementFIFO,
 		ReplacementRandom
 	};
-   
+
 	/// String map for ReplacementPolicy
 	static const misc::StringMap ReplacementPolicyMap;
  
@@ -83,11 +83,7 @@ public:
 
 		// Block tag
 		unsigned tag = 0;
-
-		// Prefetcher variable identifying block if it
-		// was prefetched or not
-		unsigned prefetch = 0;
-		
+	
 		// Transient tag assigned by NMOESI protocol
 		unsigned transient_tag = 0;
 
@@ -107,12 +103,13 @@ public:
 		{
 		}
 
+		// Prefetcher variable identifying block if it
+		// was prefetched or not
+		bool prefetched = 0;
+
 		/// Get the block tag
 		unsigned getTag() const { return tag; }
-		
-		/// Get the block prefetched variable
-		unsigned getPrefetch() const { return prefetch; } 
-		
+	
 		/// Get the way index of this block
 		unsigned getWayId() const { return way_id; }
 
@@ -128,10 +125,6 @@ public:
 			this->state = state;
 			this->tag = tag;
 		}
-
-		/// Set the block prefetched variable
-		void setPrefetch(unsigned value) { this->prefetch = value; } 
-	};
 
 private:
 
@@ -164,7 +157,7 @@ private:
 
 	// Log base 2 of the block size
 	int log_block_size;
-	
+
 	// Block replacement policy
 	ReplacementPolicy replacement_policy;
 
@@ -173,16 +166,7 @@ private:
 
 	// Prefetcher Type
 	PrefetcherType prefetcher_type;
-	
-	// Prefetcher lookup depth for the global history buffer
-	int prefetcher_lookup_depth;
-	
-	// Prefetcher GHB size
-	int prefetcher_ghb_size;
-	
-	// Prefetcher Index Table Size
-	int prefetcher_it_size;
-	
+
 	// Array of sets
 	std::unique_ptr<Set[]> sets;
 
