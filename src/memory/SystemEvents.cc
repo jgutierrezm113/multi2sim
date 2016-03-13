@@ -21,8 +21,6 @@
 
 #include "Frame.h"
 #include "System.h"
-#include "Prefetcher.h"
-#include "Module.h"
 
 
 namespace mem
@@ -34,13 +32,6 @@ esim::Event *System::event_load_action;
 esim::Event *System::event_load_miss;
 esim::Event *System::event_load_unlock;
 esim::Event *System::event_load_finish;
-
-esim::Event *System::event_prefetch;
-esim::Event *System::event_prefetch_lock;
-esim::Event *System::event_prefetch_action;
-esim::Event *System::event_prefetch_miss;
-esim::Event *System::event_prefetch_unlock;
-esim::Event *System::event_prefetch_finish;
 
 esim::Event *System::event_store;
 esim::Event *System::event_store_lock;
@@ -257,10 +248,6 @@ void System::EventLoadHandler(esim::Event *event, esim::Frame *esim_frame)
 		{
 			// Continue with 'load-unlock'
 			esim_engine->Next(event_load_unlock);
-			if (cache != NULL && cache->getPrefetcherType() != Invalid){
-				cache->prefetcher->AccessOnHit(esim_frame);
-			}
-			
 			return;
 		}
 
@@ -274,9 +261,6 @@ void System::EventLoadHandler(esim::Event *event, esim::Frame *esim_frame)
 		esim_engine->Call(event_read_request,
 				new_frame,
 				event_load_miss);
-		if (cache != NULL && cache->getPrefetcherType() != Invalid){
-			cache->prefetcher->AccessOnMiss(esim_frame);
-		}
 
 		// Done
 		return;
@@ -395,300 +379,6 @@ void System::EventLoadHandler(esim::Event *event, esim::Frame *esim_frame)
 
 }
 
-void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
-{
-	// Get engine, frame, and module
-	esim::Engine *esim_engine = esim::Engine::getInstance();
-	Frame *frame = misc::cast<Frame *>(esim_frame);
-	Module *module = frame->getModule();
-	Cache *cache = module->getCache();
-	Directory *directory = module->getDirectory();
-
-	// Event "prefetch"
-	if (event == event_prefetch)
-	{
-		debug << misc::fmt("%lld %lld 0x%x %s prefetch\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.new_access "
-				"name=\"A-%lld\" "
-				"type=\"prefetch\" "
-				"state=\"%s:prefetch\" "
-				"addr=0x%x\n",
-				frame->getId(),
-				module->getName().c_str(),
-				frame->getAddress());
-
-		// Prefetch Statistics
-		module->num_total_prefetches++;
-		
-		// Record access
-		module->StartAccess(frame, Module::AccessLoad);
-
-		// Coalesce access
-		Frame *master_frame = module->canCoalesce(
-				Module::AccessLoad,
-				frame->getAddress(),
-				frame);
-		if (master_frame)
-		{
-			// Prefetcher Statistic
-			module-> num_useless_prefetches_already_fetched++;
-
-			module->incCoalescedReads();
-			module->Coalesce(master_frame, frame);
-			master_frame->queue.Wait(event_prefetch_finish);
-			return;
-		}
-
-		// Next event
-		esim_engine->Next(event_prefetch_lock);
-		return;
-	}
-
-	// Event "prefetch_lock"
-	if (event == event_prefetch_lock)
-	{
-		debug << misc::fmt("  %lld %lld 0x%x %s prefetch lock\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.access "
-				"name=\"A-%lld\" "
-				"state=\"%s:prefetch_lock\"\n",
-				frame->getId(),
-				module->getName().c_str());
-
-		// If there is any older write, wait for it
-		Frame *older_frame = module->getInFlightWrite(frame);
-		if (older_frame)
-		{
-			debug << misc::fmt("    %lld wait for write %lld\n",
-					frame->getId(),
-					older_frame->getId());
-			older_frame->queue.Wait(event_prefetch_lock);
-			return;
-		}
-
-		// If there is any older access to the same address that this
-		// access could not be coalesced with, wait for it.
-		older_frame = module->getInFlightAddress(
-				frame->getAddress(),
-				frame);
-		if (older_frame)
-		{
-			debug << misc::fmt("    %lld wait for access %lld\n",
-					frame->getId(),
-					older_frame->getId());
-			older_frame->queue.Wait(event_load_lock);
-			return;
-		}
-
-		// Call "find_and_lock" event chain
-		auto new_frame = misc::new_shared<Frame>(
-				frame->getId(),
-				module,
-				frame->getAddress());
-		new_frame->request_direction = Frame::RequestDirectionUpDown;
-		new_frame->blocking = true;
-		new_frame->read = true;
-		new_frame->retry = frame->retry;
-		esim_engine->Call(event_find_and_lock,
-				new_frame,
-				event_prefetch_action);
-		return;
-	}
-
-
-	// Event "prefetch_action"
-	if (event == event_prefetch_action)
-	{
-		// Debug and trace
-		debug << misc::fmt("  %lld %lld 0x%x %s prefetch action\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.access name=\"A-%lld\" "
-				"state=\"%s:prefetch_action\"\n",
-				frame->getId(),
-				module->getName().c_str());
-
-		// Error locking
-		if (frame->error)
-		{
-			/* Don't want to ever retry prefetches if getting a lock failed. 
-			Effectively this means that prefetches are of low priority.
-			This can be improved to not retry only when the current lock
-			holder is writing to the block. */
-
-			// Prefetcher Statistics
-			module->num_aborted_prefetches++;
-			
-			// Debug
-			debug << misc::fmt("    lock error, aborting prefetch\n");
-
-			// No Reschedule 'prefetch-lock'
-			esim_engine->Next(event_prefetch_finish, 0);
-			return;
-		}
-
-		// Hit
-		if (frame->state)
-		{
-			// block already in the cache. Cache hit
-			
-			// Prefetcher Statistics
-			module->num_useless_prefetches_cache_hit++;
-						
-			// Continue with 'load-unlock'
-			esim_engine->Next(event_prefetch_unlock);
-			return;
-		}
-
-		// Miss
-		auto new_frame = misc::new_shared<Frame>(
-				frame->getId(),
-				module,
-				frame->tag);
-		new_frame->target_module = module->getLowModuleServingAddress(frame->tag);
-		new_frame->request_direction = Frame::RequestDirectionUpDown;
-		esim_engine->Call(event_read_request,
-				new_frame,
-				event_prefetch_miss);
-
-		// Prefetcher Statistics
-		module->num_effective_prefetches++;
-
-		// Done
-		return;
-	}
-
-
-	// Event "prefetch_miss"
-	if (event == event_prefetch_miss)
-	{
-		// Debug and trace
-		debug << misc::fmt("  %lld %lld 0x%x %s prefetch miss\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.access "
-				"name=\"A-%lld\" "
-				"state=\"%s:prefetch_miss\"\n",
-				frame->getId(),
-				module->getName().c_str());
-
-		// Error on read request. Unlock block and don't retry prefetch.
-		if (frame->error)
-		{
-			/* Don't want to ever retry prefetches if read request failed. 
-			 * Effectively this means that prefetches are of low priority.
-			 * This can be improved depending on the reason for read request fail */		
-			// Prefetcher Statistics
-			module->num_aborted_prefetches++;
-		
-			// Unlock directory entry
-			directory->UnlockEntry(frame->set,
-					frame->way,
-					frame->getId());
-			
-			// Debug
-			debug << misc::fmt("    lock error, aborting prefetch\n");
-
-			// No Reschedule 'prefetch-lock'
-			esim_engine->Next(event_prefetch_finish, 0);
-			return;
-		}
-
-		// Set block state to E/S depending on return var 'shared'.
-		// Also set the tag of the block.
-		cache->setBlock(frame->set,
-				frame->way,
-				frame->tag,
-				frame->shared ? Cache::BlockShared : Cache::BlockExclusive);
-
-		//TODO JGM
-		/* Mark the prefetched block as prefetched. This is needed to let the 
-		 * prefetcher know about an actual access to this block so that it
-		 * is aware of all misses as they would be without the prefetcher. 
-		 * The lower caches that will be filled because of this prefetch
-		 * do not know if it was a prefetch or not. Need to have a way to mark
-		 * them as prefetched too. */
-		//mod_block_set_prefetched(mod, stack->addr, 1);
-		
-		// Continue
-		esim_engine->Next(event_prefetch_unlock);
-		return;
-	}
-
-
-	// Event "prefetch_unlock"
-	if (event == event_prefetch_unlock)
-	{
-		// Debug and trace
-		debug << misc::fmt("  %lld %lld 0x%x %s "
-				"prefetch unlock\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.access "
-				"name=\"A-%lld\" "
-				"state=\"%s:prefetch_unlock\"\n",
-				frame->getId(),
-				module->getName().c_str());
-
-		// Unlock directory entry
-		directory->UnlockEntry(frame->set,
-				frame->way,
-				frame->getId());
-
-		// Stats
-		module->incDataAccesses();
-
-		// Continue with 'prefetch-finish' after latency
-		esim_engine->Next(event_prefetch_finish,
-				module->getDataLatency());
-		return;
-	}
-
-
-	// Event "prefetch_finish"
-	if (event == event_prefetch_finish)
-	{
-		// Debug and trace
-		debug << misc::fmt("%lld %lld 0x%x %s prefetch finish\n",
-				esim_engine->getTime(),
-				frame->getId(),
-				frame->getAddress(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.access "
-				"name=\"A-%lld\" "
-				"state=\"%s:prefetch_finish\"\n",
-				frame->getId(),
-				module->getName().c_str());
-		trace << misc::fmt("mem.end_access "
-				"name=\"A-%lld\"\n",
-				frame->getId());
-
-		// Increment witness variable
-		if (frame->witness)
-			(*frame->witness)++;
-
-		// Finish access
-		module->FinishAccess(frame);
-
-		// Return
-		esim_engine->Return();
-		return;
-	}
-
-}
 
 void System::EventStoreHandler(esim::Event *event,
 		esim::Frame *esim_frame)
@@ -833,11 +523,6 @@ void System::EventStoreHandler(esim::Event *event,
 		{
 			// Continue with 'store-unlock'
 			esim_engine->Next(event_store_unlock);
-			
-			if (cache != NULL && cache->getPrefetcherType() != Empty){
-				cache->prefetcher->AccessOnHit(esim_frame);
-			}
-			
 			return;
 		}
 
@@ -853,11 +538,6 @@ void System::EventStoreHandler(esim::Event *event,
 		esim_engine->Call(event_write_request,
 				new_frame,
 				event_store_unlock);
-				
-		if (cache != NULL && cache->getPrefetcherType() != Empty){
-			cache->prefetcher->AccessOnMiss(esim_frame);
-		}
-		
 		return;
 	}
 
@@ -2213,7 +1893,6 @@ void System::EventWriteRequestHandler(esim::Event *event,
 	Frame *parent_frame = misc::cast<Frame *>(esim_engine->getParentFrame());
 	Module *module = frame->getModule();
 	Module *target_module = frame->target_module;
-	Cache *cache = module->getCache();
 	Directory *target_directory = target_module->getDirectory();
 	Cache *target_cache = target_module->getCache();
 
@@ -2465,17 +2144,6 @@ void System::EventWriteRequestHandler(esim::Event *event,
 			esim_engine->Call(event_write_request,
 					new_frame,
 					event_write_request_updown_finish);
-						
-			if (frame->state == Cache::BlockInvalid){
-				if (cache != NULL && cache->getPrefetcherType() != Empty){
-					cache->prefetcher->AccessOnMiss(esim_frame);
-				}
-			} else {
-				if (cache != NULL && cache->getPrefetcherType() != Empty){
-					cache->prefetcher->AccessOnHit(esim_frame);
-				}
-			}
-			
 			break;
 		}
 		
@@ -2809,7 +2477,6 @@ void System::EventReadRequestHandler(esim::Event *event,
 	Frame *parent_frame = misc::cast<Frame *>(esim_engine->getParentFrame());
 	Module *module = frame->getModule();
 	Module *target_module = frame->target_module;
-	Cache *cache = module->getCache();
 	Directory *target_directory = target_module->getDirectory();
 	Cache *target_cache = target_module->getCache();
 
@@ -3062,12 +2729,6 @@ void System::EventReadRequestHandler(esim::Event *event,
 
 			// Continue with 'read-request-updown-finish'
 			esim_engine->Next(event_read_request_updown_finish);
-			
-			//FIXME access hit Should it be this cache or target cache?
-			if (cache != NULL && cache->getPrefetcherType() != Empty){
-				cache->prefetcher->AccessOnHit(esim_frame);
-			}
-			
 		}
 		else
 		{
@@ -3085,12 +2746,6 @@ void System::EventReadRequestHandler(esim::Event *event,
 			esim_engine->Call(event_read_request,
 					new_frame,
 					event_read_request_updown_miss);
-			
-			//FIXME access miss Should it be this cache or target cache?
-			if (cache != NULL && cache->getPrefetcherType() != Empty){
-				cache->prefetcher->AccessOnMiss(esim_frame);
-			}
-			
 		}
 		return;
 	}
