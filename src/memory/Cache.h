@@ -44,10 +44,7 @@ public:
 
 	/// String map for ReplacementPolicy
 	static const misc::StringMap ReplacementPolicyMap;
- 
-	/// String map for PrefetcherType
-	static const misc::StringMap PrefetcherTypeMap;
-    
+
 	/// Possible values for write policy
 	enum WritePolicy
 	{
@@ -125,6 +122,7 @@ public:
 			this->state = state;
 			this->tag = tag;
 		}
+	};
 
 private:
 
@@ -165,7 +163,7 @@ private:
 	WritePolicy write_policy;
 
 	// Prefetcher Type
-	PrefetcherType prefetcher_type;
+	Prefetcher::Type prefetcher_type;
 
 	// Array of sets
 	std::unique_ptr<Set[]> sets;
@@ -192,7 +190,7 @@ public:
 			unsigned block_size,
 			ReplacementPolicy replacement_policy,
 			WritePolicy write_policy,
-			PrefetcherType prefetcher_type,
+			Prefetcher::Type prefetcher_type,
 			int prefetcher_lookup_depth,
 			int prefetcher_ghb_size,
 			int prefetcher_it_size);
@@ -322,9 +320,6 @@ public:
 	/// Return the block size
 	unsigned getBlockSize() const { return block_size; }
 
-	/// Return the prefetcher type
-	PrefetcherType getPrefetcherType() const { return prefetcher_type; }
-	
 	/// Return the replacement policy
 	ReplacementPolicy getReplacementPolicy() const { return replacement_policy; }
 

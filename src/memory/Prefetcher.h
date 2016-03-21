@@ -25,31 +25,31 @@
 #include <lib/esim/Queue.h>
 
 
-// Used on GHB prefetcher: 
-// Doesn't really make sense to have a big lookup depth
-#define MAX_PREFETCHER_LOOKUP_DEPTH 4
-
-enum PrefetcherType
-{
-	Invalid = 0,
-	ConstantStrideGlobalHistoryBuffer,
-	DeltaCorrelationGlobalHistoryBuffer,
-	Always,
-	Miss
-};
-
-
 namespace mem
 {
  
 
 class Prefetcher
 {
+public:
 
+	/// Possible values for prefetcher type
+	enum Type
+	{
+		Invalid = 0,
+		Always,
+		ConstantStrideGlobalHistoryBuffer,
+		DeltaCorrelationGlobalHistoryBuffer,
+		Miss
+	}; 
+
+	/// String map for PrefetcherType
+	static const misc::StringMap TypeMap;
+    
 private:
 
 	// Identifies which prefetcher was selected by user
-	PrefetcherType type = Invalid;
+	Type type;
 
 	// GHB lookup depth
 	int global_history_buffer_lookup_depth = 0;
@@ -80,7 +80,7 @@ private:
 		enum PrefetcherPointerType
 		{
 			Invalid = 0,
-				PrefetcherPointerGlobalHistoryBuffer,
+			PrefetcherPointerGlobalHistoryBuffer,
 			PrefetcherPointerIndexTable,
 		} PreviousElementType; 
 
@@ -108,7 +108,7 @@ private:
 
 public:
 	/// Constructor
-	Prefetcher(PrefetcherType prefetcher_type,
+	Prefetcher(Type prefetcher_type,
 			int global_history_buffer_lookup_depth,
 			int global_history_buffer_size,
 			int global_history_buffer_index_table_size);
@@ -143,7 +143,7 @@ public:
 	///
 	/// \return
 	///	Returns the type of prefetcher in use on the module.
-	PrefetcherType GetType () const { return type; }
+	Type getType () const { return type; }
 		
 	/// Prefetcher Update Tables
 	///

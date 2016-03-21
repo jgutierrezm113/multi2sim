@@ -454,7 +454,7 @@ public:
 			unsigned block_size,
 			Cache::ReplacementPolicy replacement_policy,
 			Cache::WritePolicy write_policy,
-			PrefetcherType prefetcher_type,
+			Prefetcher::Type prefetcher_type,
 			int prefetcher_ghb_size,
 			int prefetcher_it_size,
 			int prefetcher_lookup_depth)
@@ -471,6 +471,20 @@ public:
 				prefetcher_it_size,
 				prefetcher_lookup_depth);
 	
+	}
+
+	/// Overloaded setCache
+	void setCache(unsigned num_sets,
+			unsigned num_ways,
+			unsigned block_size,
+			Cache::ReplacementPolicy replacement_policy,
+			Cache::WritePolicy write_policy)
+	{
+		setCache(num_sets, num_ways, block_size, 
+				replacement_policy,
+				write_policy, 
+				Prefetcher::Type::Invalid, 
+				0, 0, 0);
 	}
 
 	/// Get the cache structure associated with the module, as previously

@@ -5,9 +5,6 @@ libmemory_a_SOURCES = \
 	Cache.cc \
 	Cache.h \
 	\
-	Prefetcher.cc \
-	Prefetcher.h \
-	\
 	Directory.cc \
 	Directory.h \
 	\
@@ -25,6 +22,8 @@ libmemory_a_SOURCES = \
 	\
 	Module.cc \
 	Module.h \
+	\
+	Prefetcher.h \
 	\
 	SpecMem.cc \
 	SpecMem.h \

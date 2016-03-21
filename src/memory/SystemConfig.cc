@@ -519,10 +519,14 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 	int mshr_size = ini_file->ReadInt(geometry_section, "MSHR", 16);
 	int num_ports = ini_file->ReadInt(geometry_section, "Ports", 2);
 	
-	std::string prefetcher_type_str = ini_file->ReadString(geometry_section, "PrefetcherType", "PrefetcherEmpty");
-	int prefetcher_ghb_size         = ini_file->ReadInt(geometry_section, "PrefetcherGHBSize", 256);
-	int prefetcher_it_size          = ini_file->ReadInt(geometry_section, "PrefetcherITSize", 64);
-	int prefetcher_lookup_depth     = ini_file->ReadInt(geometry_section, "PrefetcherLookupDepth", 2);
+	std::string prefetcher_type_str = ini_file->ReadString(geometry_section, 
+			"PrefetcherType");
+	int prefetcher_ghb_size         = ini_file->ReadInt(geometry_section, 
+			"PrefetcherGHBSize", 256);
+	int prefetcher_it_size          = ini_file->ReadInt(geometry_section, 
+			"PrefetcherITSize", 64);
+	int prefetcher_lookup_depth     = ini_file->ReadInt(geometry_section, 
+			"PrefetcherLookupDepth", 2);
 
 
 	// Check replacement policy
@@ -602,28 +606,39 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 				err_config_note));
 
 	// Check prefetcher type
-	PrefetcherType prefetcher_type =
-			(PrefetcherType)
-			Cache::PrefetcherTypeMap.MapString(prefetcher_type_str);
-	if (!prefetcher_type)
+	if (!prefetcher_type_str.empty() && 
+			(!strcasecmp(prefetcher_type_str.c_str(),"Always") ||
+			!strcasecmp(prefetcher_type_str.c_str(),
+			"ConstantStride") ||
+			!strcasecmp(prefetcher_type_str.c_str(),
+			"DeltaCorrelation") ||
+			(!strcasecmp(prefetcher_type_str.c_str(),"Miss"))))
 		throw Error(misc::fmt("%s: Cache %s: %s: "
 				"Invalid prefetcher type.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				prefetcher_type_str.c_str(),
 				err_config_note));
-	if (prefetcher_type == ConstantStrideGlobalHistoryBuffer ||
-	    prefetcher_type == DeltaCorrelationGlobalHistoryBuffer ||
-	    prefetcher_type == Miss ) {
+
+	// Here we now that we have a valid or invalid prefetcher
+	Prefetcher::Type prefetcher_type =
+			(Prefetcher::Type)
+			Prefetcher::TypeMap.MapString(prefetcher_type_str);
+
+	// Roll back to implemented type
+	if (prefetcher_type == Prefetcher::ConstantStrideGlobalHistoryBuffer ||
+			prefetcher_type == Prefetcher::DeltaCorrelationGlobalHistoryBuffer ||
+			prefetcher_type == Prefetcher::Miss ) {
 		misc::Warning("%s: Cache %s: %s: Prefetcher type "
 				"not yet implemented, "
 				"'Always' type being used.\n",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				prefetcher_type_str.c_str());
-		prefetcher_type = Always;
+		prefetcher_type = Prefetcher::Always;
 	}
-				
+
+	// Check for wrong input variables for prefetcher
 	if (prefetcher_ghb_size < 1)
 		throw Error(misc::fmt("%s: cache %s: invalid value for "
 				"variable 'GHBSize'.\n%s",
@@ -785,11 +800,7 @@ Module *System::ConfigReadMainMemory(misc::IniFile *ini_file,
 			directory_num_ways,
 			block_size,
 			Cache::ReplacementLRU,
-			Cache::WriteBack,
-			Empty,
-			1,
-			1,
-			2); //JGMonge: FIXME, need to make sure this doesn't affect (it shouldn't)
+			Cache::WriteBack);
 
 	// Done
 	return module;
