@@ -50,6 +50,13 @@ const misc::StringMap Cache::BlockStateMap =
 	{ "I", BlockInvalid }
 };
 
+const misc::StringMap Cache::PrefetcherTypeMap =
+{
+	{ "PrefetcherGhbPcCs", ConstantStrideGlobalHistoryBuffer },
+	{ "PrefetcherGhbPcDc", DeltaCorrelationGlobalHistoryBuffer },
+	{ "PrefetcherAlways", Always },
+	{ "PrefetcherMiss", Miss }
+};
 
 Cache::Cache(const std::string &name,
 		unsigned num_sets,
@@ -57,7 +64,7 @@ Cache::Cache(const std::string &name,
 		unsigned block_size,
 		ReplacementPolicy replacement_policy,
 		WritePolicy write_policy,
-		Prefetcher::Type prefetcher_type,
+		PrefetcherType prefetcher_type,
 		int prefetcher_lookup_depth,
 		int prefetcher_ghb_size,
 		int prefetcher_it_size)
@@ -67,7 +74,8 @@ Cache::Cache(const std::string &name,
 		num_ways(num_ways),
 		block_size(block_size),
 		replacement_policy(replacement_policy),
-		write_policy(write_policy)
+		write_policy(write_policy),
+		prefetcher_type(prefetcher_type)
 {
 	// Derived fields
 	assert(!(num_sets & (num_sets - 1)));
@@ -95,7 +103,7 @@ Cache::Cache(const std::string &name,
 
 	// Initiate a prefetcher if the cache has any
 	if (prefetcher_type)
-		prefetcher = misc::new_unique<Prefetcher>(prefetcher_type,
+		prefetcher = misc::new_unique<Prefetcher>(//prefetcher_type,
 				prefetcher_lookup_depth,
 				prefetcher_ghb_size,
 				prefetcher_it_size);

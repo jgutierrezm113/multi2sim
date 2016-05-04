@@ -24,32 +24,14 @@
 #include <lib/esim/Event.h>
 #include <lib/esim/Queue.h>
 
-
 namespace mem
 {
  
 
 class Prefetcher
 {
-public:
-
-	/// Possible values for prefetcher type
-	enum Type
-	{
-		Invalid = 0,
-		Always,
-		ConstantStrideGlobalHistoryBuffer,
-		DeltaCorrelationGlobalHistoryBuffer,
-		Miss
-	}; 
-
-	/// String map for PrefetcherType
-	static const misc::StringMap TypeMap;
     
 private:
-
-	// Identifies which prefetcher was selected by user
-	Type type;
 
 	// GHB lookup depth
 	int global_history_buffer_lookup_depth = 0;
@@ -108,8 +90,7 @@ private:
 
 public:
 	/// Constructor
-	Prefetcher(Type prefetcher_type,
-			int global_history_buffer_lookup_depth,
+	Prefetcher( int global_history_buffer_lookup_depth,
 			int global_history_buffer_size,
 			int global_history_buffer_index_table_size);
 	
@@ -137,14 +118,7 @@ public:
 	/// \param esim_frame
 	///	Has all the information of the data in motion.
 	void AccessOnHit(esim::Frame *esim_frame);
-
-
-	/// Get Prefetcher Type
-	///
-	/// \return
-	///	Returns the type of prefetcher in use on the module.
-	Type getType () const { return type; }
-		
+	
 	/// Prefetcher Update Tables
 	///
 	///	\param esim_frame

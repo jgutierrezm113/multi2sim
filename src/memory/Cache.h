@@ -33,6 +33,19 @@ class Cache
 {
 public:
 
+	/// Possible values for prefetcher type
+	enum PrefetcherType
+	{
+		Invalid = 0,
+		Always,
+		ConstantStrideGlobalHistoryBuffer,
+		DeltaCorrelationGlobalHistoryBuffer,
+		Miss
+	}; 
+
+	/// String map for PrefetcherType
+	static const misc::StringMap PrefetcherTypeMap;
+	
 	/// Possible values for block replacement policy
 	enum ReplacementPolicy
 	{
@@ -163,7 +176,7 @@ private:
 	WritePolicy write_policy;
 
 	// Prefetcher Type
-	Prefetcher::Type prefetcher_type;
+	PrefetcherType prefetcher_type;
 
 	// Array of sets
 	std::unique_ptr<Set[]> sets;
@@ -190,7 +203,7 @@ public:
 			unsigned block_size,
 			ReplacementPolicy replacement_policy,
 			WritePolicy write_policy,
-			Prefetcher::Type prefetcher_type,
+			PrefetcherType prefetcher_type,
 			int prefetcher_lookup_depth,
 			int prefetcher_ghb_size,
 			int prefetcher_it_size);

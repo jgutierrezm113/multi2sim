@@ -454,7 +454,7 @@ public:
 			unsigned block_size,
 			Cache::ReplacementPolicy replacement_policy,
 			Cache::WritePolicy write_policy,
-			Prefetcher::Type prefetcher_type,
+			Cache::PrefetcherType prefetcher_type,
 			int prefetcher_ghb_size,
 			int prefetcher_it_size,
 			int prefetcher_lookup_depth)
@@ -483,7 +483,7 @@ public:
 		setCache(num_sets, num_ways, block_size, 
 				replacement_policy,
 				write_policy, 
-				Prefetcher::Type::Invalid, 
+				Cache::PrefetcherType::Invalid, 
 				0, 0, 0);
 	}
 

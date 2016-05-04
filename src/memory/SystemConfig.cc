@@ -620,22 +620,22 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 				prefetcher_type_str.c_str(),
 				err_config_note));
 
-	// Here we now that we have a valid or invalid prefetcher
-	Prefetcher::Type prefetcher_type =
-			(Prefetcher::Type)
-			Prefetcher::TypeMap.MapString(prefetcher_type_str);
+	// Here we know that we have a valid or invalid prefetcher
+	Cache::PrefetcherType prefetcher_type =
+			(Cache::PrefetcherType)
+			Cache::PrefetcherTypeMap.MapString(prefetcher_type_str);
 
 	// Roll back to implemented type
-	if (prefetcher_type == Prefetcher::ConstantStrideGlobalHistoryBuffer ||
-			prefetcher_type == Prefetcher::DeltaCorrelationGlobalHistoryBuffer ||
-			prefetcher_type == Prefetcher::Miss ) {
+	if (prefetcher_type == Cache::ConstantStrideGlobalHistoryBuffer ||
+			prefetcher_type == Cache::DeltaCorrelationGlobalHistoryBuffer ||
+			prefetcher_type == Cache::Miss ) {
 		misc::Warning("%s: Cache %s: %s: Prefetcher type "
 				"not yet implemented, "
 				"'Always' type being used.\n",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				prefetcher_type_str.c_str());
-		prefetcher_type = Prefetcher::Always;
+		prefetcher_type = Cache::Always;
 	}
 
 	// Check for wrong input variables for prefetcher

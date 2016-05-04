@@ -23,6 +23,7 @@ libmemory_a_SOURCES = \
 	Module.cc \
 	Module.h \
 	\
+	Prefetcher.cc \
 	Prefetcher.h \
 	\
 	SpecMem.cc \
