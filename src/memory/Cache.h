@@ -24,7 +24,6 @@
 
 #include <lib/cpp/List.h>
 #include <lib/cpp/String.h>
-#include "Prefetcher.h"
 
 namespace mem
 {
@@ -32,19 +31,6 @@ namespace mem
 class Cache
 {
 public:
-
-	/// Possible values for prefetcher type
-	enum PrefetcherType
-	{
-		Invalid = 0,
-		Always,
-		ConstantStrideGlobalHistoryBuffer,
-		DeltaCorrelationGlobalHistoryBuffer,
-		Miss
-	}; 
-
-	/// String map for PrefetcherType
-	static const misc::StringMap PrefetcherTypeMap;
 	
 	/// Possible values for block replacement policy
 	enum ReplacementPolicy
@@ -175,9 +161,6 @@ private:
 	// Write policy (write-back, write-through)
 	WritePolicy write_policy;
 
-	// Prefetcher Type
-	PrefetcherType prefetcher_type;
-
 	// Array of sets
 	std::unique_ptr<Set[]> sets;
 
@@ -192,9 +175,6 @@ private:
 	}
 
 public:
-
-	// Prefetcher pointer
-	std::unique_ptr<Prefetcher> prefetcher;
 	
 	/// Constructor
 	Cache(const std::string &name,
@@ -202,11 +182,7 @@ public:
 			unsigned num_ways,
 			unsigned block_size,
 			ReplacementPolicy replacement_policy,
-			WritePolicy write_policy,
-			PrefetcherType prefetcher_type,
-			int prefetcher_lookup_depth,
-			int prefetcher_ghb_size,
-			int prefetcher_it_size);
+			WritePolicy write_policy);
 				
 	/// Return a pointer to a cache block
 	Block *getBlock(unsigned set_id, unsigned way_id) const
@@ -316,7 +292,6 @@ public:
 	}
 
 
-
 	//
 	// Getters
 	//
@@ -338,7 +313,7 @@ public:
 
 	/// Return the write policy
 	WritePolicy getWritePolicy() const { return write_policy; }
-
+	
 	/// Return a mask used to extract the bits corresponding to the block
 	/// offset of an address.
 	unsigned getBlockMask() const { return block_mask; }

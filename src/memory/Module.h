@@ -32,6 +32,7 @@
 
 #include "Cache.h"
 #include "Directory.h"
+#include "Prefetcher.h"
 
 
 // Forward declarations
@@ -78,6 +79,19 @@ public:
 		AccessPrefetch
 	};
 
+	/// Possible values for prefetcher type
+	enum PrefetcherType
+	{
+		PrefetcherInvalid = 0,
+		PrefetcherAlways,
+		PrefetcherConstantStrideGlobalHistoryBuffer,
+		PrefetcherDeltaCorrelationGlobalHistoryBuffer,
+		PrefetcherMiss
+	}; 
+	
+	/// String map for PrefetcherType
+	static const misc::StringMap PrefetcherTypeMap;
+	
 	// Port in a memory module
 	struct Port
 	{
@@ -234,12 +248,23 @@ private:
 	std::unordered_set<long long> in_flight_access_ids;
 
 
+	//
+	// Prefetcher
+	//
+	
+public:	
+	// Prefetcher Type
+	PrefetcherType prefetcher_type;
+		
+	// Prefetcher pointer
+	std::unique_ptr<Prefetcher> prefetcher;
 
 
 	//
 	// Other
 	//
 
+private:
 	// Waiting list of memory accesses
 	esim::Queue queue;
 
@@ -327,6 +352,17 @@ public:
 			Type type,
 			int num_ports,
 			int block_size,
+			int data_latency,
+			PrefetcherType prefetcher_type,
+			int prefetcher_lookup_depth,
+			int prefetcher_ghb_size,
+			int prefetcher_it_size);
+			
+	/// Overloaded Constructor
+	Module(const std::string &name,
+			Type type,
+			int num_ports,
+			int block_size,
 			int data_latency);
 	
 	/// Set the directory properties. This does not instantiate the
@@ -387,6 +423,9 @@ public:
 	/// Return module name
 	const std::string &getName() const { return name; }
 
+	/// Return the prefetcher type
+	PrefetcherType getPrefetcherType() const { return prefetcher_type; }
+	
 	/// Return the module type
 	Type getType() const { return type; }
 
@@ -453,11 +492,7 @@ public:
 			unsigned num_ways,
 			unsigned block_size,
 			Cache::ReplacementPolicy replacement_policy,
-			Cache::WritePolicy write_policy,
-			Cache::PrefetcherType prefetcher_type,
-			int prefetcher_ghb_size,
-			int prefetcher_it_size,
-			int prefetcher_lookup_depth)
+			Cache::WritePolicy write_policy)
 	{
 		assert(!cache.get());
 		cache = misc::new_unique<Cache>(name,
@@ -465,26 +500,8 @@ public:
 				num_ways,
 				block_size,
 				replacement_policy,
-				write_policy,
-				prefetcher_type,
-				prefetcher_ghb_size,
-				prefetcher_it_size,
-				prefetcher_lookup_depth);
+				write_policy);
 	
-	}
-
-	/// Overloaded setCache
-	void setCache(unsigned num_sets,
-			unsigned num_ways,
-			unsigned block_size,
-			Cache::ReplacementPolicy replacement_policy,
-			Cache::WritePolicy write_policy)
-	{
-		setCache(num_sets, num_ways, block_size, 
-				replacement_policy,
-				write_policy, 
-				Cache::PrefetcherType::Invalid, 
-				0, 0, 0);
 	}
 
 	/// Get the cache structure associated with the module, as previously

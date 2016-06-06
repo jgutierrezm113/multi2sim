@@ -258,8 +258,10 @@ void System::EventLoadHandler(esim::Event *event, esim::Frame *esim_frame)
 			// Continue with 'load-unlock'
 			esim_engine->Next(event_load_unlock);
 			
-			if (cache != NULL && cache->prefetcher){
-				cache->prefetcher->AccessOnHit(esim_frame);
+			// If module has prefetcher, access it
+			if (module->prefetcher)
+			{
+				module->prefetcher->AccessOnHit(module, frame->getAddress());
 			}
 			
 			return;
@@ -276,8 +278,10 @@ void System::EventLoadHandler(esim::Event *event, esim::Frame *esim_frame)
 				new_frame,
 				event_load_miss);
 		
-		if (cache != NULL && cache->prefetcher){
-			cache->prefetcher->AccessOnMiss(esim_frame);
+		// If module has prefetcher, access it
+		if (module->prefetcher)
+		{
+			module->prefetcher->AccessOnMiss(module, frame->getAddress());
 		}
 
 		// Done
@@ -409,6 +413,7 @@ void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
 	// Event "prefetch"
 	if (event == event_prefetch)
 	{
+		// Debug and trace information
 		debug << misc::fmt("%lld %lld 0x%x %s prefetch\n",
 				esim_engine->getTime(),
 				frame->getId(),
@@ -437,7 +442,7 @@ void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
 		if (master_frame)
 		{
 			// Prefetcher Statistic
-			module-> num_useless_prefetches_already_fetched++;
+			module->num_useless_prefetches_already_fetched++;
 
 			module->incCoalescedReads();
 			module->Coalesce(master_frame, frame);
@@ -522,10 +527,6 @@ void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
 		// Error locking
 		if (frame->error)
 		{
-			/* Don't want to ever retry prefetches if getting a lock failed. 
-			Effectively this means that prefetches are of low priority.
-			This can be improved to not retry only when the current lock
-			holder is writing to the block. */
 
 			// Prefetcher Statistics
 			module->num_aborted_prefetches++;
@@ -587,10 +588,7 @@ void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
 
 		// Error on read request. Unlock block and don't retry prefetch.
 		if (frame->error)
-		{
-			/* Don't want to ever retry prefetches if read request failed. 
-			 * Effectively this means that prefetches are of low priority.
-			 * This can be improved depending on the reason for read request fail */		
+		{		
 			// Prefetcher Statistics
 			module->num_aborted_prefetches++;
 		
@@ -614,14 +612,7 @@ void System::EventPrefetchHandler(esim::Event *event, esim::Frame *esim_frame)
 				frame->tag,
 				frame->shared ? Cache::BlockShared : Cache::BlockExclusive);
 
-		//TODO FIXME
-		/* Mark the prefetched block as prefetched. This is needed to let the 
-		 * prefetcher know about an actual access to this block so that it
-		 * is aware of all misses as they would be without the prefetcher. 
-		 * TODO: The lower caches that will be filled because of this prefetch
-		 * do not know if it was a prefetch or not. Need to have a way to mark
-		 * them as prefetched too. */
-		//mod_block_set_prefetched(mod, stack->addr, 1);
+		// TODO: Mark Block as prefetched.
 		
 		// Continue
 		esim_engine->Next(event_prefetch_unlock);
@@ -836,8 +827,10 @@ void System::EventStoreHandler(esim::Event *event,
 			// Continue with 'store-unlock'
 			esim_engine->Next(event_store_unlock);
 			
-			if (cache != NULL && cache->prefetcher){
-				cache->prefetcher->AccessOnHit(esim_frame);
+			// If module has prefetcher, access it
+			if (module->prefetcher)
+			{
+				module->prefetcher->AccessOnHit(module, frame->getAddress());
 			}
 			
 			return;
@@ -856,9 +849,11 @@ void System::EventStoreHandler(esim::Event *event,
 				new_frame,
 				event_store_unlock);
 				
-		if (cache != NULL && cache->prefetcher){
-			cache->prefetcher->AccessOnMiss(esim_frame);
-		}
+		// If module has prefetcher, access it
+			if (module->prefetcher)
+			{
+				module->prefetcher->AccessOnMiss(module, frame->getAddress());
+			}
 		
 		return;
 	}
@@ -2215,7 +2210,6 @@ void System::EventWriteRequestHandler(esim::Event *event,
 	Frame *parent_frame = misc::cast<Frame *>(esim_engine->getParentFrame());
 	Module *module = frame->getModule();
 	Module *target_module = frame->target_module;
-	Cache *cache = module->getCache();
 	Directory *target_directory = target_module->getDirectory();
 	Cache *target_cache = target_module->getCache();
 
@@ -2468,13 +2462,20 @@ void System::EventWriteRequestHandler(esim::Event *event,
 					new_frame,
 					event_write_request_updown_finish);
 			
-			if (frame->state == Cache::BlockInvalid){
-				if (cache != NULL && cache->prefetcher){
-					cache->prefetcher->AccessOnMiss(esim_frame);
+			if (frame->state == Cache::BlockInvalid)
+			{
+				// If module has prefetcher, access it
+				if (module->prefetcher)
+				{
+					module->prefetcher->AccessOnMiss(module, frame->getAddress());
 				}
-			} else {
-				if (cache != NULL && cache->prefetcher){
-					cache->prefetcher->AccessOnHit(esim_frame);
+			}
+			else
+			{
+				// If module has prefetcher, access it
+				if (module->prefetcher)
+				{
+					module->prefetcher->AccessOnHit(module, frame->getAddress());
 				}
 			}
 			
@@ -2811,7 +2812,6 @@ void System::EventReadRequestHandler(esim::Event *event,
 	Frame *parent_frame = misc::cast<Frame *>(esim_engine->getParentFrame());
 	Module *module = frame->getModule();
 	Module *target_module = frame->target_module;
-	Cache *cache = module->getCache(); //FIXME
 	Directory *target_directory = target_module->getDirectory();
 	Cache *target_cache = target_module->getCache();
 
@@ -3065,9 +3065,10 @@ void System::EventReadRequestHandler(esim::Event *event,
 			// Continue with 'read-request-updown-finish'
 			esim_engine->Next(event_read_request_updown_finish);
 			
-			//FIXME access hit Should it be this cache or target cache?
-			if (cache != NULL && cache->prefetcher){
-				cache->prefetcher->AccessOnHit(esim_frame);
+			// If module has prefetcher, access it
+			if (module->prefetcher)
+			{
+				module->prefetcher->AccessOnHit(module, frame->getAddress());
 			}
 		}
 		else
@@ -3087,9 +3088,10 @@ void System::EventReadRequestHandler(esim::Event *event,
 					new_frame,
 					event_read_request_updown_miss);
 			
-			//FIXME access miss Should it be this cache or target cache?
-			if (cache != NULL && cache->prefetcher){
-				cache->prefetcher->AccessOnMiss(esim_frame);
+			// If module has prefetcher, access it
+			if (module->prefetcher)
+			{
+				module->prefetcher->AccessOnMiss(module, frame->getAddress());
 			}
 		}
 		return;

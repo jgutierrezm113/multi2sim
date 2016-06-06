@@ -18,7 +18,6 @@
  */
 
 #include "Cache.h"
-#include "Prefetcher.h"
 #include "System.h"
 
 
@@ -50,32 +49,19 @@ const misc::StringMap Cache::BlockStateMap =
 	{ "I", BlockInvalid }
 };
 
-const misc::StringMap Cache::PrefetcherTypeMap =
-{
-	{ "PrefetcherGhbPcCs", ConstantStrideGlobalHistoryBuffer },
-	{ "PrefetcherGhbPcDc", DeltaCorrelationGlobalHistoryBuffer },
-	{ "PrefetcherAlways", Always },
-	{ "PrefetcherMiss", Miss }
-};
-
 Cache::Cache(const std::string &name,
 		unsigned num_sets,
 		unsigned num_ways,
 		unsigned block_size,
 		ReplacementPolicy replacement_policy,
-		WritePolicy write_policy,
-		PrefetcherType prefetcher_type,
-		int prefetcher_lookup_depth,
-		int prefetcher_ghb_size,
-		int prefetcher_it_size)
+		WritePolicy write_policy)
 		:
 		name(name),
 		num_sets(num_sets),
 		num_ways(num_ways),
 		block_size(block_size),
 		replacement_policy(replacement_policy),
-		write_policy(write_policy),
-		prefetcher_type(prefetcher_type)
+		write_policy(write_policy)
 {
 	// Derived fields
 	assert(!(num_sets & (num_sets - 1)));
@@ -100,13 +86,6 @@ Cache::Cache(const std::string &name,
 			set->lru_list.PushBack(block->lru_node);
 		}
 	}
-
-	// Initiate a prefetcher if the cache has any
-	if (prefetcher_type)
-		prefetcher = misc::new_unique<Prefetcher>(//prefetcher_type,
-				prefetcher_lookup_depth,
-				prefetcher_ghb_size,
-				prefetcher_it_size);
 }
 
 void Cache::DecodeAddress(unsigned address,

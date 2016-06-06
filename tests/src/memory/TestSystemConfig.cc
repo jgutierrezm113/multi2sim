@@ -148,6 +148,85 @@ TEST(TestSystemConfiguration, section_module_cache_replacement_policy)
 			actual_str.c_str());
 }
 
+TEST(TestSystemConfiguration, section_module_cache_prefetcher_policy)
+{
+	// Cleanup singleton instances
+	Cleanup();
+
+	// Setup configuration file
+	std::string config =
+		"[ General ]\n"
+		"Frequency = 1000\n"
+		"[ Module test ]\n"
+		"Type = Cache\n"
+		"Geometry = cacheTest\n"
+		"[ CacheGeometry cacheTest ]\n"
+		"PrefetcherType = wrong";
+
+	// Set up INI file
+	misc::IniFile ini_file;
+	ini_file.LoadFromString(config);
+
+	// Set up memory system instance
+	System *memory_system = System::getInstance();
+
+	// Test body
+	std::string actual_str;
+	try
+	{
+		memory_system->ReadConfiguration(&ini_file);
+	}
+	catch (misc::Error &actual_error)
+	{
+		actual_str = actual_error.getMessage();
+	}
+
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Cache test: wrong: "
+			"Invalid prefetcher type.\n.*",
+			ini_file.getPath().c_str()).c_str(),
+			actual_str.c_str());
+}
+
+TEST(TestSystemConfiguration, section_module_cache_prefetcher_miss_policy)
+{
+	// Cleanup singleton instances
+	Cleanup();
+
+	// Setup configuration file
+	std::string config =
+		"[ General ]\n"
+		"Frequency = 1000\n"
+		"[ Module test ]\n"
+		"Type = Cache\n"
+		"Geometry = cacheTest\n"
+		"[ CacheGeometry cacheTest ]\n"
+		"PrefetcherType = PrefetcherMiss";
+
+	// Set up INI file
+	misc::IniFile ini_file;
+	ini_file.LoadFromString(config);
+
+	// Set up memory system instance
+	System *memory_system = System::getInstance();
+
+	// Test body
+	std::string actual_str;
+	try
+	{
+		memory_system->ReadConfiguration(&ini_file);
+	}
+	catch (misc::Error &actual_error)
+	{
+		actual_str = actual_error.getMessage();
+	}
+
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Cache test: PrefetcherMiss: "
+			"not yet implemented, "
+			"'Always' type being used.\n",
+			ini_file.getPath().c_str()).c_str(),
+			actual_str.c_str());
+}
+
 
 TEST(TestSystemConfiguration, section_module_cache_write_policy)
 {

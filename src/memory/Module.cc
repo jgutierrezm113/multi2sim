@@ -26,17 +26,51 @@ namespace mem
 {
 
 
+const misc::StringMap Module::PrefetcherTypeMap =
+{
+	{ "PrefetcherGhbPcCs", PrefetcherConstantStrideGlobalHistoryBuffer },
+	{ "PrefetcherGhbPcDc", PrefetcherDeltaCorrelationGlobalHistoryBuffer },
+	{ "PrefetcherAlways", PrefetcherAlways },
+	{ "PrefetcherMiss", PrefetcherMiss }
+};
+
 Module::Module(const std::string &name,
 		Type type,
 		int num_ports,
 		int block_size,
-		int data_latency)
+		int data_latency,
+		PrefetcherType prefetcher_type,
+		int prefetcher_lookup_depth,
+		int prefetcher_ghb_size,
+		int prefetcher_it_size)
 		:
 		name(name),
 		type(type),
 		block_size(block_size),
 		data_latency(data_latency),
-		num_ports(num_ports)
+		num_ports(num_ports),
+		prefetcher_type(prefetcher_type)
+{
+	// Create 'num_ports' in vector of ports
+	ports.resize(num_ports);
+
+	// Block size
+	assert(!(block_size & (block_size - 1)) && block_size >= 4);
+	log_block_size = misc::LogBase2(block_size);
+	
+	// Initiate a prefetcher if the cache has any
+	if (prefetcher_type)
+		prefetcher = misc::new_unique<Prefetcher>(
+				prefetcher_lookup_depth,
+				prefetcher_ghb_size,
+				prefetcher_it_size);
+}
+
+Module::Module(const std::string &name,
+			Type type,
+			int num_ports,
+			int block_size,
+			int data_latency)
 {
 	// Create 'num_ports' in vector of ports
 	ports.resize(num_ports);

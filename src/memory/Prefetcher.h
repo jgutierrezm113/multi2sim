@@ -24,15 +24,26 @@
 #include <lib/esim/Event.h>
 #include <lib/esim/Queue.h>
 
+#include <memory>
+
+#include <lib/cpp/Misc.h>
+#include <lib/esim/Engine.h>
+#include <lib/esim/Queue.h>
+#include <network/EndNode.h>
+
+#include "Module.h"
+
 namespace mem
 {
- 
+
+// Forward declarations
+class Module;
 
 class Prefetcher
 {
     
 private:
-
+	
 	// GHB lookup depth
 	int global_history_buffer_lookup_depth = 0;
 	
@@ -57,8 +68,8 @@ private:
 		// Previous element in the linked list : -1 implies none
 		int previous;
 	
-		/// Whether the previous element is a GHB entry or a pointer
-		///	to the index table. 
+		// Whether the previous element is a GHB entry or a pointer
+		//	to the index table. 
 		enum PrefetcherPointerType
 		{
 			Invalid = 0,
@@ -102,33 +113,44 @@ public:
 	///
 	/// \param prefetch_address
 	///	Has the actual address that needs to be prefetched.
-	void PrefetchAction(esim::Frame *esim_frame, 
+	void PrefetchAction(Module *module, 
 			unsigned int prefetch_address);
 	
 	/// Function in charge of deciding what to do with the access miss
 	/// depending of the prefetcher type.
 	///
-	/// \param esim_frame
-	///	Has all the information of the data in motion.
-	void AccessOnMiss(esim::Frame *esim_frame);
+	/// \param module
+	///	Pointer to the memory module of the prefetcher.
+	///
+	/// \param address
+	///	Address of the currently processed memory on which the 
+	///	prefetch will be done.
+	void AccessOnMiss(Module *module, unsigned int address);
 
 	/// Function in charge of deciding what to do with the access hit
 	/// depending of the prefetcher type.
 	///
-	/// \param esim_frame
-	///	Has all the information of the data in motion.
-	void AccessOnHit(esim::Frame *esim_frame);
+	/// \param module
+	///	Pointer to the memory module of the prefetcher.
+	///
+	/// \param address
+	///	Address of the currently processed memory on which the 
+	///	prefetch will be done.
+	void AccessOnHit(Module *module, unsigned int address);
 	
 	/// Prefetcher Update Tables
 	///
-	///	\param esim_frame
-	///		Container of all the information related to the
-	///		transaction
+	/// \param module
+	///	Pointer to the memory module of the prefetcher.
 	///
-	///	\return
-	///		it_index >= 0 if any valid update is made, 
-	///		negative otherwise.
-	int UpdateTables (esim::Frame *esim_frame);
+	/// \param address
+	///	Address of the currently processed memory on which the 
+	///	prefetch will be done.
+	///
+	/// \return
+	///	it_index >= 0 if any valid update is made, 
+	///	negative otherwise.
+	int UpdateTables (Module *module, unsigned int address);
 	
 };
 

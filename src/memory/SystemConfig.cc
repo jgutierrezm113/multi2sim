@@ -613,7 +613,7 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 			!strcasecmp(prefetcher_type_str.c_str(),
 			"DeltaCorrelation") ||
 			(!strcasecmp(prefetcher_type_str.c_str(),"Miss"))))
-		throw Error(misc::fmt("%s: Cache %s: %s: "
+		throw Error(misc::fmt("%s: Module %s: %s: "
 				"Invalid prefetcher type.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
@@ -621,38 +621,38 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 				err_config_note));
 
 	// Here we know that we have a valid or invalid prefetcher
-	Cache::PrefetcherType prefetcher_type =
-			(Cache::PrefetcherType)
-			Cache::PrefetcherTypeMap.MapString(prefetcher_type_str);
+	Module::PrefetcherType prefetcher_type =
+			(Module::PrefetcherType)
+			Module::PrefetcherTypeMap.MapString(prefetcher_type_str);
 
 	// Roll back to implemented type
-	if (prefetcher_type == Cache::ConstantStrideGlobalHistoryBuffer ||
-			prefetcher_type == Cache::DeltaCorrelationGlobalHistoryBuffer ||
-			prefetcher_type == Cache::Miss ) {
-		misc::Warning("%s: Cache %s: %s: Prefetcher type "
+	if (prefetcher_type == Module::PrefetcherConstantStrideGlobalHistoryBuffer ||
+			prefetcher_type == Module::PrefetcherDeltaCorrelationGlobalHistoryBuffer ||
+			prefetcher_type == Module::PrefetcherMiss ) {
+		misc::Warning("%s: Module %s: %s: Prefetcher type "
 				"not yet implemented, "
 				"'Always' type being used.\n",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				prefetcher_type_str.c_str());
-		prefetcher_type = Cache::Always;
+		prefetcher_type = Module::PrefetcherAlways;
 	}
 
 	// Check for wrong input variables for prefetcher
 	if (prefetcher_ghb_size < 1)
-		throw Error(misc::fmt("%s: cache %s: invalid value for "
+		throw Error(misc::fmt("%s: Prefetcher %s: invalid value for "
 				"variable 'GHBSize'.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				err_config_note));
 	if (prefetcher_it_size < 1)
-		throw Error(misc::fmt("%s: cache %s: invalid value for "
+		throw Error(misc::fmt("%s: Prefetcher %s: invalid value for "
 				"variable 'ITSize'.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				err_config_note));
 	if (prefetcher_lookup_depth < 1)
-		throw Error(misc::fmt("%s: cache %s: invalid value for "
+		throw Error(misc::fmt("%s: Prefetcher %s: invalid value for "
 				"variable 'LookUpDepth'.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
@@ -664,7 +664,11 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 			Module::TypeCache,
 			num_ports,
 			block_size,
-			latency);
+			latency,
+			prefetcher_type,
+			prefetcher_ghb_size,
+			prefetcher_it_size,
+			prefetcher_lookup_depth);
 	
 	// Initialize module
 	module->setDirectoryProperties(num_sets, num_ways, directory_latency);
@@ -701,11 +705,7 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 			num_ways,
 			block_size,
 			replacement_policy,
-			write_policy,
-			prefetcher_type,
-			prefetcher_ghb_size,
-			prefetcher_it_size,
-			prefetcher_lookup_depth);
+			write_policy);
 	// Done
 	return module;
 }

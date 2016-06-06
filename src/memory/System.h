@@ -132,7 +132,11 @@ class System
 			Module::Type type,
 			int num_ports,
 			int block_size,
-			int data_latency)
+			int data_latency,
+			Module::PrefetcherType prefetcher_type,
+			int prefetcher_lookup_depth,
+			int prefetcher_ghb_size,
+			int prefetcher_it_size)
 	{
 		assert(module_map.find(name) == module_map.end());
 		modules.emplace_back(misc::new_unique<Module>(
@@ -140,9 +144,32 @@ class System
 				type,
 				num_ports,
 				block_size,
-				data_latency));
+				data_latency,
+				prefetcher_type,
+				prefetcher_ghb_size,
+				prefetcher_it_size,
+				prefetcher_lookup_depth));
 		Module *module = modules.back().get();
 		module_map[name] = module;
+		return module;
+	}
+	
+	// Overloading addModule Function
+	Module *addModule(const std::string &name,
+			Module::Type type,
+			int num_ports,
+			int block_size,
+			int data_latency)
+	{
+		Module *module = addModule(name,
+			type,
+			num_ports,
+			block_size,
+			data_latency,
+			Module::PrefetcherInvalid,
+			0,
+			0,
+			0);
 		return module;
 	}
 
