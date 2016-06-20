@@ -28,8 +28,8 @@ namespace mem
 
 const misc::StringMap Module::PrefetcherTypeMap =
 {
-	{ "PrefetcherGhbPcCs", PrefetcherConstantStrideGlobalHistoryBuffer },
-	{ "PrefetcherGhbPcDc", PrefetcherDeltaCorrelationGlobalHistoryBuffer },
+	{ "PrefetcherGhbCs", PrefetcherConstantStrideGlobalHistoryBuffer },
+	{ "PrefetcherGhbDc", PrefetcherDeltaCorrelationGlobalHistoryBuffer },
 	{ "PrefetcherAlways", PrefetcherAlways },
 	{ "PrefetcherMiss", PrefetcherMiss }
 };
@@ -206,7 +206,6 @@ long long Module::Access(AccessType access_type,
 	{
 
 	case TypeCache:
-	case TypeMainMemory:
 
 		switch (access_type)
 		{
@@ -216,6 +215,37 @@ long long Module::Access(AccessType access_type,
 			event = System::event_load;
 			break;
 
+		case AccessPrefetch:
+
+			event = System::event_prefetch;
+			break;
+
+		case AccessStore:
+
+			event = System::event_store;
+			break;
+
+		case AccessNCStore:
+
+			event = System::event_nc_store;
+			break;
+
+		default:
+
+			throw misc::Panic("Invalid access type");
+		}
+		break;
+
+	case TypeMainMemory:
+
+		switch (access_type)
+		{
+
+		case AccessLoad:
+
+			event = System::event_load;
+			break;
+		
 		case AccessStore:
 
 			event = System::event_store;

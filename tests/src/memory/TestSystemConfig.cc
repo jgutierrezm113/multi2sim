@@ -181,7 +181,7 @@ TEST(TestSystemConfiguration, section_module_cache_prefetcher_policy)
 		actual_str = actual_error.getMessage();
 	}
 
-	EXPECT_REGEX_MATCH(misc::fmt("%s: Cache test: wrong: "
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Module test: wrong: "
 			"Invalid prefetcher type.\n.*",
 			ini_file.getPath().c_str()).c_str(),
 			actual_str.c_str());
@@ -220,13 +220,132 @@ TEST(TestSystemConfiguration, section_module_cache_prefetcher_miss_policy)
 		actual_str = actual_error.getMessage();
 	}
 
-	EXPECT_REGEX_MATCH(misc::fmt("%s: Cache test: PrefetcherMiss: "
-			"not yet implemented, "
-			"'Always' type being used.\n",
+	Module *module = memory_system->getModule("test");
+	EXPECT_EQ(module->prefetcher_type, Module::PrefetcherAlways);
+
+}
+
+TEST(TestSystemConfiguration, section_module_cache_prefetcher_ghb_size)
+{
+	// Cleanup singleton instances
+	Cleanup();
+
+	// Setup configuration file
+	std::string config =
+		"[ General ]\n"
+		"Frequency = 1000\n"
+		"[ Module test ]\n"
+		"Type = Cache\n"
+		"Geometry = cacheTest\n"
+		"[ CacheGeometry cacheTest ]\n"
+		"PrefetcherType = PrefetcherAlways\n"
+		"PrefetcherGHBSize = -2";
+
+	// Set up INI file
+	misc::IniFile ini_file;
+	ini_file.LoadFromString(config);
+
+	// Set up memory system instance
+	System *memory_system = System::getInstance();
+
+	// Test body
+	std::string actual_str;
+	try
+	{
+		memory_system->ReadConfiguration(&ini_file);
+	}
+	catch (misc::Error &actual_error)
+	{
+		actual_str = actual_error.getMessage();
+	}
+
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Prefetcher test: invalid value for "
+			"variable 'GHBSize'.\n.*",
+			ini_file.getPath().c_str()).c_str(),
+			actual_str.c_str());
+
+}
+
+TEST(TestSystemConfiguration, section_module_cache_prefetcher_it_size)
+{
+	// Cleanup singleton instances
+	Cleanup();
+
+	// Setup configuration file
+	std::string config =
+		"[ General ]\n"
+		"Frequency = 1000\n"
+		"[ Module test ]\n"
+		"Type = Cache\n"
+		"Geometry = cacheTest\n"
+		"[ CacheGeometry cacheTest ]\n"
+		"PrefetcherType = PrefetcherAlways\n"
+		"PrefetcherITSize = -1";
+
+	// Set up INI file
+	misc::IniFile ini_file;
+	ini_file.LoadFromString(config);
+
+	// Set up memory system instance
+	System *memory_system = System::getInstance();
+
+	// Test body
+	std::string actual_str;
+	try
+	{
+		memory_system->ReadConfiguration(&ini_file);
+	}
+	catch (misc::Error &actual_error)
+	{
+		actual_str = actual_error.getMessage();
+	}
+
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Prefetcher test: invalid value for "
+			"variable 'ITSize'.\n.*",
 			ini_file.getPath().c_str()).c_str(),
 			actual_str.c_str());
 }
 
+TEST(TestSystemConfiguration, section_module_cache_prefetcher_lookup_depth)
+{
+	// Cleanup singleton instances
+	Cleanup();
+
+	// Setup configuration file
+	std::string config =
+		"[ General ]\n"
+		"Frequency = 1000\n"
+		"[ Module test ]\n"
+		"Type = Cache\n"
+		"Geometry = cacheTest\n"
+		"[ CacheGeometry cacheTest ]\n"
+		"PrefetcherType = PrefetcherAlways\n"
+		"PrefetcherLookupDepth = -2";
+
+	// Set up INI file
+	misc::IniFile ini_file;
+	ini_file.LoadFromString(config);
+
+	// Set up memory system instance
+	System *memory_system = System::getInstance();
+
+	// Test body
+	std::string actual_str;
+	try
+	{
+		memory_system->ReadConfiguration(&ini_file);
+	}
+	catch (misc::Error &actual_error)
+	{
+		actual_str = actual_error.getMessage();
+	}
+
+	EXPECT_REGEX_MATCH(misc::fmt("%s: Prefetcher test: invalid value for "
+			"variable 'LookUpDepth'.\n.*",
+			ini_file.getPath().c_str()).c_str(),
+			actual_str.c_str());
+
+}
 
 TEST(TestSystemConfiguration, section_module_cache_write_policy)
 {

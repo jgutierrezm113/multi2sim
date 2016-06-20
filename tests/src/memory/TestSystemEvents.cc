@@ -265,6 +265,114 @@ const std::string mem_config_1 =
 		"Thread = 0\n"
 		"Module = mod-l1-3\n";
 
+// Prefetcher
+const std::string mem_config_2 =
+		"[CacheGeometry geo-l1]\n"
+		"Sets = 16\n"
+		"Assoc = 2\n"
+		"BlockSize = 64\n"
+		"Latency = 2\n"
+		"Policy = LRU\n"
+		"Ports = 2\n"
+		"PrefetcherType = PrefetcherAlways\n"
+		"\n"
+		"[CacheGeometry geo-l2]\n"
+		"Sets = 4\n"
+		"Assoc = 4\n"
+		"BlockSize = 128\n"
+		"Latency = 20\n"
+		"Policy = LRU\n"
+		"Ports = 4\n"
+		"PrefetcherType = PrefetcherAlways\n"
+		"\n"
+		"; 4 l1 cpu caches\n"
+		"\n"
+		"[Module mod-l1-0]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l1\n"
+		"LowNetwork = net0\n"
+		"LowNetworkNode = n0\n"
+		"LowModules = mod-l2-0\n"
+		"\n"
+		"[Module mod-l1-1]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l1\n"
+		"LowNetwork = net0\n"
+		"LowNetworkNode = n1\n"
+		"LowModules = mod-l2-0\n"
+		"\n"
+		"[Module mod-l1-2]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l1\n"
+		"LowNetwork = net1\n"
+		"LowNetworkNode = n3\n"
+		"LowModules = mod-l2-1\n"
+		"\n"
+		"[Module mod-l1-3]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l1\n"
+		"LowNetwork = net1\n"
+		"LowNetworkNode = n4\n"
+		"LowModules = mod-l2-1\n"
+		"\n"
+		"; 1 l2 cpu cache\n"
+		"\n"
+		"[Module mod-l2-0]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l2\n"
+		"HighNetwork = net0\n"
+		"HighNetworkNode = n2\n"
+		"LowNetwork = net2\n"
+		"LowNetworkNode = n6\n"
+		"LowModules = mod-mm\n"
+		"\n"
+		"[Module mod-l2-1]\n"
+		"Type = Cache\n"
+		"Geometry = geo-l2\n"
+		"HighNetwork = net1\n"
+		"HighNetworkNode = n5\n"
+		"LowNetwork = net2\n"
+		"LowNetworkNode = n7\n"
+		"LowModules = mod-mm\n"
+		"\n"
+		"; 1 mm\n"
+		"\n"
+		"[Module mod-mm]\n"
+		"Type = MainMemory\n"
+		"BlockSize = 128\n"
+		"Latency = 200\n"
+		"HighNetwork = net2\n"
+		"HighNetworkNode = n8\n"
+		"\n"
+		"\n"
+		"[Entry core-0]\n"
+		"Arch = x86\n"
+		"Core = 0\n"
+		"Thread = 0\n"
+		"DataModule = mod-l1-0\n"
+		"InstModule = mod-l1-0\n"
+		"\n"
+		"[Entry core-1]\n"
+		"Arch = x86\n"
+		"Core = 1\n"
+		"Thread = 0\n"
+		"DataModule = mod-l1-1\n"
+		"InstModule = mod-l1-1\n"
+		"\n"
+		"[Entry core-2]\n"
+		"Arch = x86\n"
+		"Core = 2\n"
+		"Thread = 0\n"
+		"DataModule = mod-l1-2\n"
+		"InstModule = mod-l1-2\n"
+		"\n"
+		"[Entry core-3]\n"
+		"Arch = x86\n"
+		"Core = 3\n"
+		"Thread = 0\n"
+		"DataModule = mod-l1-3\n"
+		"InstModule = mod-l1-3\n";
+
 const std::string x86_config =
 		"[ General ]\n"
 		"Cores = 4\n"
@@ -2361,7 +2469,7 @@ TEST(TestSystemEvents, config_0_load_3)
 
 
 // l1_0 loads a value from empty hierarchy (expect next block in cache as well)
-TEST(TestSystemEvents, config_0_load_3_prefetcher)
+TEST(TestSystemEvents, config_0_load_3_prefetcher_1)
 {
 	try
 	{
@@ -2371,7 +2479,7 @@ TEST(TestSystemEvents, config_0_load_3_prefetcher)
 		misc::IniFile ini_file_mem;
 		misc::IniFile ini_file_x86;
 		misc::IniFile ini_file_net;
-		ini_file_mem.LoadFromString(mem_config_0);
+		ini_file_mem.LoadFromString(mem_config_2);
 		ini_file_x86.LoadFromString(x86_config);
 		ini_file_net.LoadFromString(net_config);
 
@@ -2441,18 +2549,42 @@ TEST(TestSystemEvents, config_0_load_3_prefetcher)
 		unsigned tag2;
 		Cache::BlockState state2;
 		module_l1_0->getCache()->getBlock(1, 1, tag2, state2);
-		EXPECT_EQ(tag, 0x0);
-		EXPECT_EQ(state, Cache::BlockExclusive);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+		
+		// Check prefetched block
+		module_l2_0->getCache()->getBlock(1, 3, tag2, state2);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+
+		// Check prefetched block
+		module_mm->getCache()->getBlock(1, 15, tag2, state2);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+
+		// Check prefetched sharers
+		EXPECT_EQ(module_mm->getNumSharers(0, 15, 0), 1);
+		EXPECT_EQ(module_mm->isSharer(0, 15, 0, module_l2_0), true);
+
+		// Check prefetched owner
+		EXPECT_EQ(module_mm->getOwner(0, 15, 0), module_l2_0);
+
+		// Check prefetched owner
+		EXPECT_EQ(module_l2_0->getOwner(0, 3, 0), module_l1_0);
+
+		// Check prefetched sharers
+		EXPECT_EQ(module_l2_0->getNumSharers(0, 3, 0), 1);
+		EXPECT_EQ(module_l2_0->isSharer(0, 3, 0, module_l1_0), true);
 		
 		// TODO: Link numbers have to be updated
 		
 		// Check link
 		net::Node *node = module_l1_0->getLowNetworkNode();
-		EXPECT_EQ(node->getReceivedBytes(), 72); // Should receive double?
+		EXPECT_EQ(node->getReceivedBytes(), 144); // Should receive double?
 
 		// Check link
 		node = module_l1_0->getLowNetworkNode();
-		EXPECT_EQ(node->getSentBytes(), 8); // Same?
+		EXPECT_EQ(node->getSentBytes(), 16); // Same?
 
 		// Check link
 		node = module_l1_1->getLowNetworkNode();
@@ -2464,11 +2596,11 @@ TEST(TestSystemEvents, config_0_load_3_prefetcher)
 
 		// Check link
 		node = module_l2_0->getHighNetworkNode();
-		EXPECT_EQ(node->getReceivedBytes(), 8);
+		EXPECT_EQ(node->getReceivedBytes(), 16);
 
 		// Check link
 		node = module_l2_0->getHighNetworkNode();
-		EXPECT_EQ(node->getSentBytes(), 72);
+		EXPECT_EQ(node->getSentBytes(), 144);
 
 		// Check link
 		node = module_l2_0->getLowNetworkNode();
@@ -2485,6 +2617,185 @@ TEST(TestSystemEvents, config_0_load_3_prefetcher)
 		// Check link
 		node = module_mm->getHighNetworkNode();
 		EXPECT_EQ(node->getSentBytes(), 136);
+	}
+	catch (misc::Exception &e)
+	{
+		e.Dump();
+		FAIL();
+	}
+}
+
+// l1_0 loads a value from empty hierarchy (expect next block in cache as well)
+// l1_0 access next block (should be hit)
+TEST(TestSystemEvents, config_0_load_3_prefetcher_2)
+{
+	try
+	{
+		// Cleanup singleton instances
+		Cleanup();
+
+		misc::IniFile ini_file_mem;
+		misc::IniFile ini_file_x86;
+		misc::IniFile ini_file_net;
+		ini_file_mem.LoadFromString(mem_config_2);
+		ini_file_x86.LoadFromString(x86_config);
+		ini_file_net.LoadFromString(net_config);
+
+		// Set up x86 timing simulator
+		x86::Timing::ParseConfiguration(&ini_file_x86);
+		x86::Timing::getInstance();
+
+		// Set up network system
+		net::System *network_system = net::System::getInstance();
+		network_system->ParseConfiguration(&ini_file_net);
+
+		// Set up memory system
+		System *memory_system = System::getInstance();
+		memory_system->ReadConfiguration(&ini_file_mem); // TODO: Need to create specific memory config
+
+		// Get modules
+		Module *module_l1_0 = memory_system->getModule("mod-l1-0");
+		Module *module_l1_1 = memory_system->getModule("mod-l1-1");
+		Module *module_l2_0 = memory_system->getModule("mod-l2-0");
+		Module *module_mm = memory_system->getModule("mod-mm");
+		ASSERT_NE(module_l1_0, nullptr);
+		ASSERT_NE(module_l1_1, nullptr);
+		ASSERT_NE(module_l2_0, nullptr);
+		ASSERT_NE(module_mm, nullptr);
+
+		// Accesses
+		int witness = -1;
+		module_l1_0->Access(Module::AccessLoad, 0x0, &witness);
+
+		// Simulation loop
+		esim::Engine *esim_engine = esim::Engine::getInstance();
+		while (witness < 0)
+			esim_engine->ProcessEvents();
+
+		// Check block
+		unsigned tag;
+		Cache::BlockState state;
+		module_l1_0->getCache()->getBlock(0, 1, tag, state);
+		EXPECT_EQ(tag, 0x0);
+		EXPECT_EQ(state, Cache::BlockExclusive);
+
+		// Check block
+		module_l2_0->getCache()->getBlock(0, 3, tag, state);
+		EXPECT_EQ(tag, 0x0);
+		EXPECT_EQ(state, Cache::BlockExclusive);
+
+		// Check block
+		module_mm->getCache()->getBlock(0, 15, tag, state);
+		EXPECT_EQ(tag, 0x0);
+		EXPECT_EQ(state, Cache::BlockExclusive);
+
+		// Check sharers
+		EXPECT_EQ(module_mm->getNumSharers(0, 15, 0), 1);
+		EXPECT_EQ(module_mm->isSharer(0, 15, 0, module_l2_0), true);
+
+		// Check owner
+		EXPECT_EQ(module_mm->getOwner(0, 15, 0), module_l2_0);
+
+		// Check owner
+		EXPECT_EQ(module_l2_0->getOwner(0, 3, 0), module_l1_0);
+
+		// Check sharers
+		EXPECT_EQ(module_l2_0->getNumSharers(0, 3, 0), 1);
+		EXPECT_EQ(module_l2_0->isSharer(0, 3, 0, module_l1_0), true);
+
+		// Check prefetched block
+		unsigned tag2;
+		Cache::BlockState state2;
+		module_l1_0->getCache()->getBlock(1, 1, tag2, state2);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+		
+		// Check prefetched block
+		module_l2_0->getCache()->getBlock(1, 3, tag2, state2);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+
+		// Check prefetched block
+		module_mm->getCache()->getBlock(1, 15, tag2, state2);
+		EXPECT_EQ(tag2, 0x0);
+		EXPECT_EQ(state2, Cache::BlockExclusive);
+
+		// Check prefetched sharers
+		EXPECT_EQ(module_mm->getNumSharers(0, 15, 0), 1);
+		EXPECT_EQ(module_mm->isSharer(0, 15, 0, module_l2_0), true);
+
+		// Check prefetched owner
+		EXPECT_EQ(module_mm->getOwner(0, 15, 0), module_l2_0);
+
+		// Check prefetched owner
+		EXPECT_EQ(module_l2_0->getOwner(0, 3, 0), module_l1_0);
+
+		// Check prefetched sharers
+		EXPECT_EQ(module_l2_0->getNumSharers(0, 3, 0), 1);
+		EXPECT_EQ(module_l2_0->isSharer(0, 3, 0, module_l1_0), true);
+		
+		// TODO: Link numbers have to be updated
+		
+		// Check link
+		net::Node *node = module_l1_0->getLowNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 144); // Should receive double?
+
+		// Check link
+		node = module_l1_0->getLowNetworkNode();
+		EXPECT_EQ(node->getSentBytes(), 16); // Same?
+
+		// Check link
+		node = module_l1_1->getLowNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 0);
+
+		// Check link
+		node = module_l1_1->getLowNetworkNode();
+		EXPECT_EQ(node->getSentBytes(), 0);
+
+		// Check link
+		node = module_l2_0->getHighNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 16);
+
+		// Check link
+		node = module_l2_0->getHighNetworkNode();
+		EXPECT_EQ(node->getSentBytes(), 144);
+
+		// Check link
+		node = module_l2_0->getLowNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 136);
+
+		// Check link
+		node = module_l2_0->getLowNetworkNode();
+		EXPECT_EQ(node->getSentBytes(), 8);
+
+		// Check link
+		node = module_mm->getHighNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 8);
+
+		// Check link
+		node = module_mm->getHighNetworkNode();
+		EXPECT_EQ(node->getSentBytes(), 136);
+		
+		// Accesses next block
+		witness = -1;
+		module_l1_0->Access(Module::AccessLoad, 0x1, &witness);
+
+		// Simulation loop
+		esim_engine = esim::Engine::getInstance();
+		while (witness < 0)
+			esim_engine->ProcessEvents();
+		
+		// No memory traffic, should be in l1_0
+		
+		// Check block
+		module_l1_0->getCache()->getBlock(1, 1, tag, state);
+		EXPECT_EQ(tag, 0x0);
+		EXPECT_EQ(state, Cache::BlockExclusive);
+		
+		// Check link
+		node = module_l1_0->getLowNetworkNode();
+		EXPECT_EQ(node->getReceivedBytes(), 144); // Same as before
+		
 	}
 	catch (misc::Exception &e)
 	{

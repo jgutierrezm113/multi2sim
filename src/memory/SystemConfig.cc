@@ -607,18 +607,20 @@ Module *System::ConfigReadCache(misc::IniFile *ini_file,
 
 	// Check prefetcher type
 	if (!prefetcher_type_str.empty() && 
-			(!strcasecmp(prefetcher_type_str.c_str(),"Always") ||
+			!(!strcasecmp(prefetcher_type_str.c_str(),"PrefetcherAlways") ||
 			!strcasecmp(prefetcher_type_str.c_str(),
-			"ConstantStride") ||
+			"PrefetcherGhbCs") ||
 			!strcasecmp(prefetcher_type_str.c_str(),
-			"DeltaCorrelation") ||
-			(!strcasecmp(prefetcher_type_str.c_str(),"Miss"))))
+			"PrefetcherGhbDc") ||
+			!strcasecmp(prefetcher_type_str.c_str(),"PrefetcherMiss")))
+	{
 		throw Error(misc::fmt("%s: Module %s: %s: "
 				"Invalid prefetcher type.\n%s",
 				ini_file->getPath().c_str(),
 				module_name.c_str(),
 				prefetcher_type_str.c_str(),
 				err_config_note));
+	}
 
 	// Here we know that we have a valid or invalid prefetcher
 	Module::PrefetcherType prefetcher_type =
